@@ -9,7 +9,7 @@ import os
 import configparser
 import pycurl
 # import pathlib
-import ctypes
+# import ctypes
 from io import BytesIO
 import subprocess
 import colorama
@@ -46,14 +46,14 @@ def init_proxy(curl, proxy):
     try:
         curl.setopt(curl.PROXY, proxy['ip'].strip())
         curl.setopt(curl.PROXYPORT, int(proxy['port']))
-        curl.setopt(curl.PROXYTYPE, curl.PROXYTYPE_HTTP)
+        #curl.setopt(curl.PROXYTYPE, curl.PROXYTYPE_HTTP)
         if proxy['auth'].strip() == 'ntlm':
             curl.setopt(curl.PROXYAUTH, curl.HTTPAUTH_NTLM)
             curl.setopt(pycurl.PROXYUSERNAME, '')
             curl.setopt(pycurl.PROXYPASSWORD, '')
         else:
             curl.setopt(curl.PROXYAUTH, curl.HTTPAUTH_BASIC)
-            setopt(pycurl.PROXYUSERPWD, "%s:%s" % (proxy['login'], proxy['pass']))
+            curl.setopt(curl.PROXYUSERPWD, "%s:%s" % (proxy['login'], proxy['pass']))
     except KeyError:
         raise SystemExit("erreur lors de l'initialisation du proxy")
     return
@@ -61,21 +61,42 @@ def init_proxy(curl, proxy):
 
 def progress(total_to_download, total_downloaded, total_to_upload, total_uploaded):
     global download_name
+    percent_completed = 0
     if total_to_download:
         percent_completed = total_downloaded * 100 // total_to_download
-        sys.stdout.write('\r%s: %s%%' % (download_name, percent_completed))
+        sys.stdout.write('\r%s: %s%%   ' % (download_name, percent_completed))
         sys.stdout.flush()
 
+def init_curl(curl):
+    curl.setopt(pycurl.SSL_VERIFYPEER, 0)
+    curl.setopt(pycurl.SSL_VERIFYHOST, 0)
+    #curl.setopt(curl.USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:47.0) Gecko/20100101 Firefox/47.0')
+    curl.setopt(curl.FOLLOWLOCATION, 1)
+    #curl.setopt(curl.HTTPHEADER, ["Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8","Accept-Language: fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3"])
+    #curl.setopt(curl.HTTPHEADER, ["Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8","Accept-Language: fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3", 
+    #                              "Accept-Encoding: gzip, deflate",
+    #                              "Cookie:oraclelicense=accept-securebackup-cookie"])
+    #curl.setopt(curl.VERBOSE, 1)
+    return
 
 def download_file(link, proxy=None):
     file_name = link.split('/')[-1]
     curl = pycurl.Curl()
-    curl.setopt(curl.SSL_VERIFYPEER, 0)
-    curl.setopt(curl.SSL_VERIFYHOST, 0)
+    init_curl(curl)
+    #curl.setopt(curl.SSL_VERIFYPEER, 0)
+    #curl.setopt(curl.SSL_VERIFYHOST, 0)
     curl.setopt(curl.NOPROGRESS, False)
     curl.setopt(curl.XFERINFOFUNCTION, progress)
-
     curl.setopt(curl.URL, link)
+    #curl.setopt(curl.USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:47.0) Gecko/20100101 Firefox/47.0')
+    #curl.setopt(curl.COOKIEFILE, '')
+    curl.setopt(curl.HTTPHEADER, ["Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8","Accept-Language: fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3", 
+                                  "Accept-Encoding: gzip, deflate",
+                                  "Cookie:oraclelicense=accept-securebackup-cookie"])
+    #curl.setopt(curl.FOLLOWLOCATION, 1)
+    #curl.setopt(curl.VERBOSE, 1)
+    if proxy is not None:
+        init_proxy(curl, proxy)
     with open(file_name, 'wb') as f:
         curl.setopt(curl.WRITEDATA, f)
         curl.perform()
@@ -85,9 +106,16 @@ def download_file(link, proxy=None):
 
 def get_page(link, proxy=None):
     curl = pycurl.Curl()
-    curl.setopt(pycurl.SSL_VERIFYPEER, 0)
-    curl.setopt(pycurl.SSL_VERIFYHOST, 0)
+    #curl.setopt(pycurl.SSL_VERIFYPEER, 0)
+    #curl.setopt(pycurl.SSL_VERIFYHOST, 0)
+    init_curl(curl)
     curl.setopt(curl.URL, link)
+
+    #curl.setopt(curl.USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:47.0) Gecko/20100101 Firefox/47.0')
+    #curl.setopt(curl.COOKIEFILE, '')
+    curl.setopt(curl.HTTPHEADER, ["Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8","Accept-Language: fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3"])
+    #curl.setopt(curl.VERBOSE, 1)
+
     buf_bytes = BytesIO()
     curl.setopt(curl.WRITEDATA, buf_bytes)
     if proxy is not None:
@@ -126,7 +154,7 @@ class Prog:
             page = get_page(self.version_link, proxy)
             reg = re.search(self.version_regex, page)
             try:
-                version = reg.groups()[0]
+                version = reg.groups()[0].strip().lower()
             except AttributeError:
                 version = "aucune version disponible"
         print(self.name + ":", version)
@@ -134,15 +162,14 @@ class Prog:
         return
 
     def get_host_version(self):
-        subprocess.call(self.cmd + ' 1> cmdcall.txt 2>&1', shell=True, creationflags=subprocess.SW_HIDE)
+        version = ''
+        subprocess.call(self.cmd + ' 1>cmdcall.txt 2>&1', shell=True, creationflags=subprocess.SW_HIDE)
         with open('cmdcall.txt', "r") as f:
             version = ''.join(f.readlines())
-        return version
+        return version.lower()
 
     def run_cmp(self):
-        if self.version is None:
-            raise SystemExit("impossible de déterminer les versions")
-        if self.version not in self.get_host_version() and self.version != "aucune version disponible":
+        if self.version not in self.get_host_version() or self.version == "aucune version disponible" or self.version is None:
             print(Fore.LIGHTRED_EX + self.name + " doit être mis à jour" + Fore.RESET)
             # si on n'a pas donné un version_regex
             # c'est qu'on a déja téléchargé l'exe pour vérifier la version
@@ -205,7 +232,7 @@ def main():
     print()
     print(Fore.LIGHTMAGENTA_EX + "Téléchargements des mises à jour:" + Fore.RESET)
     for p in list_prog:
-        p.dowload_installer()
+        p.dowload_installer(proxy=proxy)
 
     print(Fore.LIGHTMAGENTA_EX + "Téléchargements terminés" + Fore.RESET)
     os.system('pause')
