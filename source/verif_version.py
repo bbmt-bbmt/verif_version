@@ -67,34 +67,30 @@ def progress(total_to_download, total_downloaded, total_to_upload, total_uploade
         sys.stdout.write('\r%s: %s%%   ' % (download_name, percent_completed))
         sys.stdout.flush()
 
+
 def init_curl(curl):
     curl.setopt(pycurl.SSL_VERIFYPEER, 0)
     curl.setopt(pycurl.SSL_VERIFYHOST, 0)
-    #curl.setopt(curl.USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:47.0) Gecko/20100101 Firefox/47.0')
+    # curl.setopt(curl.USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:47.0) Gecko/20100101 Firefox/47.0')
     curl.setopt(curl.FOLLOWLOCATION, 1)
-    #curl.setopt(curl.HTTPHEADER, ["Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8","Accept-Language: fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3"])
-    #curl.setopt(curl.HTTPHEADER, ["Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8","Accept-Language: fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3", 
-    #                              "Accept-Encoding: gzip, deflate",
-    #                              "Cookie:oraclelicense=accept-securebackup-cookie"])
-    #curl.setopt(curl.VERBOSE, 1)
+    # curl.setopt(curl.VERBOSE, 1)
     return
+
 
 def download_file(link, proxy=None):
     file_name = link.split('/')[-1]
     curl = pycurl.Curl()
     init_curl(curl)
-    #curl.setopt(curl.SSL_VERIFYPEER, 0)
-    #curl.setopt(curl.SSL_VERIFYHOST, 0)
     curl.setopt(curl.NOPROGRESS, False)
     curl.setopt(curl.XFERINFOFUNCTION, progress)
     curl.setopt(curl.URL, link)
-    #curl.setopt(curl.USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:47.0) Gecko/20100101 Firefox/47.0')
-    #curl.setopt(curl.COOKIEFILE, '')
-    curl.setopt(curl.HTTPHEADER, ["Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8","Accept-Language: fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3", 
+    # le cookie dans l'header c'est pas beau
+    # c'est pour la validation du download de java
+    # todo mettre une option cookie dans le fichier ini
+    curl.setopt(curl.HTTPHEADER, ["Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                                  "Accept-Language: fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3",
                                   "Accept-Encoding: gzip, deflate",
                                   "Cookie:oraclelicense=accept-securebackup-cookie"])
-    #curl.setopt(curl.FOLLOWLOCATION, 1)
-    #curl.setopt(curl.VERBOSE, 1)
     if proxy is not None:
         init_proxy(curl, proxy)
     with open(file_name, 'wb') as f:
@@ -106,15 +102,11 @@ def download_file(link, proxy=None):
 
 def get_page(link, proxy=None):
     curl = pycurl.Curl()
-    #curl.setopt(pycurl.SSL_VERIFYPEER, 0)
-    #curl.setopt(pycurl.SSL_VERIFYHOST, 0)
     init_curl(curl)
     curl.setopt(curl.URL, link)
 
-    #curl.setopt(curl.USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:47.0) Gecko/20100101 Firefox/47.0')
-    #curl.setopt(curl.COOKIEFILE, '')
-    curl.setopt(curl.HTTPHEADER, ["Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8","Accept-Language: fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3"])
-    #curl.setopt(curl.VERBOSE, 1)
+    curl.setopt(curl.HTTPHEADER, ["Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                                  "Accept-Language: fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3"])
 
     buf_bytes = BytesIO()
     curl.setopt(curl.WRITEDATA, buf_bytes)
