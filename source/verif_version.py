@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import traceback
 import re
 from win32api import GetFileVersionInfo, LOWORD, HIWORD
 import sys
@@ -197,7 +198,18 @@ class Prog:
         return
 
 
+def erreur_final(*exc_info):
+    text = "".join(traceback.format_exception(*exc_info))
+    print()
+    print("Exception: %s" % text)
+    os.system("pause")
+    raise SystemExit(1)
+    return
+
+
 def main():
+    sys.excepthook = erreur_final
+
     # efface l'écran
     print('\x1b[2J', end='')
 
