@@ -19,6 +19,16 @@ colorama.init()
 
 download_name = ""
 
+def call_cmd(cmd):
+    """ Permet de lancer des commandes indépendament du chemin
+    C'est pour éviter les problèmes lorsque le fichier est dans un
+    unc path
+    """
+    path = os.getcwd()
+    os.chdir("c:\\")
+    subprocess.call(cmd, shell=True, creationflags=subprocess.SW_HIDE)
+    os.chdir(path)
+    return
 
 def read_verif_version_ini():
     try:
@@ -47,7 +57,6 @@ def init_proxy(curl, proxy):
     try:
         curl.setopt(curl.PROXY, proxy['ip'].strip())
         curl.setopt(curl.PROXYPORT, int(proxy['port']))
-        #curl.setopt(curl.PROXYTYPE, curl.PROXYTYPE_HTTP)
         if proxy['auth'].strip() == 'ntlm':
             curl.setopt(curl.PROXYAUTH, curl.HTTPAUTH_NTLM)
             curl.setopt(pycurl.PROXYUSERNAME, '')
@@ -156,7 +165,11 @@ class Prog:
 
     def get_host_version(self):
         version = ''
-        subprocess.call(self.cmd + ' 1>cmdcall.txt 2>&1', shell=True, creationflags=subprocess.SW_HIDE)
+        path = os.getcwd()
+        cmd = "pushd %s && %s 1>cmdcall.txt 2>&1 " % (path, self.cmd)
+        
+        call_cmd(cmd)
+
         with open('cmdcall.txt', "r") as f:
             version = ''.join(f.readlines())
         return version.lower()
@@ -179,7 +192,6 @@ class Prog:
             return
         if self.download_regex != '':
             page = get_page(self.download_link, proxy)
-            # regex = self.download_regex.replace('VERSION', self.version)
             reg_result = re.search(self.download_regex, page)
             try:
                 download_link = reg_result.groups()[0]
@@ -202,7 +214,7 @@ def erreur_final(*exc_info):
     text = "".join(traceback.format_exception(*exc_info))
     print()
     print("Exception: %s" % text)
-    os.system("pause")
+    call_cmd("pause")
     raise SystemExit(1)
     return
 
@@ -239,7 +251,7 @@ def main():
         p.dowload_installer(proxy=proxy)
 
     print(Fore.LIGHTMAGENTA_EX + "Téléchargements terminés" + Fore.RESET)
-    os.system('pause')
+    call_cmd("pause")
 
 #    if sys.argv[1:] and sys.argv[1] == "messagebox":
 #        intro_message = 'Des mises à jour sont dispo :\n'
