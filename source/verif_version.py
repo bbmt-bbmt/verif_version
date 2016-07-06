@@ -26,7 +26,8 @@ def call_cmd(cmd):
     """
     path = os.getcwd()
     os.chdir("c:\\")
-    subprocess.call(cmd, shell=True, creationflags=subprocess.SW_HIDE)
+    new_cmd = "pushd %s &&" % path + cmd
+    subprocess.call(new_cmd, shell=True, creationflags=subprocess.SW_HIDE)
     os.chdir(path)
     return
 
@@ -165,8 +166,7 @@ class Prog:
 
     def get_host_version(self):
         version = ''
-        path = os.getcwd()
-        cmd = "pushd %s && %s 1>cmdcall.txt 2>&1 " % (path, self.cmd)
+        cmd = self.cmd + " 1>cmdcall.txt 2>&1 "
         
         call_cmd(cmd)
 
