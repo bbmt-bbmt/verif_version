@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# todo
+# modification d'archi, le init de Prog devrait se charger tout seul
+# de chercher les version
+# le main devrait juste creer les instances de Prog et puis peut être
+# lancer download_installer. Il faut passer le proxy dans l'init de prog
+
 import traceback
 import re
 from win32api import GetFileVersionInfo, LOWORD, HIWORD
@@ -9,8 +15,6 @@ import pywintypes
 import os
 import configparser
 import pycurl
-# import pathlib
-# import ctypes
 from io import BytesIO
 import subprocess
 import colorama
@@ -19,17 +23,22 @@ colorama.init()
 
 download_name = ""
 
+
 def call_cmd(cmd):
     """ Permet de lancer des commandes indépendament du chemin
     C'est pour éviter les problèmes lorsque le fichier est dans un
     unc path
     """
     path = os.getcwd()
+    # changer de repertoire permet de lancer pushd sans erreur
     os.chdir("c:\\")
-    new_cmd = "pushd %s &&" % path + cmd
-    subprocess.call(new_cmd, shell=True, creationflags=subprocess.SW_HIDE)
+    new_cmd = "pushd %s && %s && popd" % (path, cmd)
+    # le pushd permet de changer de repertoire et de ne pas avoir
+    # d'unc si on veut acceder à un fichier
+    subprocess.call(new_cmd, shell=True, creationflags=subprocess.SW_HIDE, stderr=subprocess.DEVNULL)
     os.chdir(path)
     return
+
 
 def read_verif_version_ini():
     try:
@@ -88,20 +97,22 @@ def init_curl(curl):
     return
 
 
-def download_file(link, proxy=None):
+def download_file(link, proxy=None,cookies=''):
     file_name = link.split('/')[-1]
     curl = pycurl.Curl()
     init_curl(curl)
     curl.setopt(curl.NOPROGRESS, False)
     curl.setopt(curl.XFERINFOFUNCTION, progress)
     curl.setopt(curl.URL, link)
-    # le cookie dans l'header c'est pas beau
-    # c'est pour la validation du download de java
-    # todo mettre une option cookie dans le fichier ini
-    curl.setopt(curl.HTTPHEADER, ["Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                                  "Accept-Language: fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3",
-                                  "Accept-Encoding: gzip, deflate",
-                                  "Cookie:oraclelicense=accept-securebackup-cookie"])
+    
+    http_headers = ["Accept:text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Accept-Language: fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3",
+                    "Accept-Encoding: gzip, deflate"]
+    if cookies:
+        http_headers.append("Cookie:" + cookies)
+    
+    curl.setopt(curl.HTTPHEADER, http_headers)
+
     if proxy is not None:
         init_proxy(curl, proxy)
     with open(file_name, 'wb') as f:
@@ -138,11 +149,13 @@ class Prog:
             self.version_regex = param.get('version_regex', '').strip()
             self.download_regex = param.get('download_regex', '').strip()
             self.download_link = param.get('download_link', self.version_link).strip()
+            self.cookies = param.get('cookies','').strip()
             self.cmd = param['cmd'].strip()
             self.version = None
             self.to_download = False
         except KeyError:
             print("Erreur: il manque des paramètres")
+            call_cmd("pause")
             raise SystemExit(-1)
         return
 
@@ -167,7 +180,7 @@ class Prog:
     def get_host_version(self):
         version = ''
         cmd = self.cmd + " 1>cmdcall.txt 2>&1 "
-        
+
         call_cmd(cmd)
 
         with open('cmdcall.txt', "r") as f:
@@ -205,7 +218,7 @@ class Prog:
             download_link = self.download_link.replace('VERSION', self.version)
 
         download_name = self.name
-        download_file(download_link, proxy)
+        download_file(download_link, proxy, self.cookies)
         print()
         return
 
