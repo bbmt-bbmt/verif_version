@@ -3,7 +3,7 @@
 
 # todo
 # modification d'archi, le init de Prog devrait se charger tout seul
-# de chercher les version
+# de chercher les versions
 # le main devrait juste creer les instances de Prog et puis peut être
 # lancer download_installer. Il faut passer le proxy dans l'init de prog
 
