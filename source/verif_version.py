@@ -150,8 +150,16 @@ class Prog:
             self.download_regex = param.get('download_regex', '').strip()
             self.download_link = param.get('download_link', self.version_link).strip()
             self.cookies = param.get('cookies','').strip()
+            #self.post = param.get('post','').strip().split('\n')
+            #self.post_data = {}
+            #for item in self.post:
+            #    key = item.split(":",1)[0]
+            #    value = item.split(":",1)[1]
+            #    self.post_data[key] = value
+            #self.post_data = urlencode(self.post_data)
             self.cmd = param['cmd'].strip()
             self.version = None
+            self.sous_version = None
             self.to_download = False
         except KeyError:
             print("Erreur: il manque des paramètres")
@@ -171,6 +179,10 @@ class Prog:
             reg = re.search(self.version_regex, page)
             try:
                 version = reg.groups()[0].strip().lower()
+                try:
+                    self.sous_version = reg.groups()[1].strip().lower()
+                except:
+                    pass
             except AttributeError:
                 version = "aucune version disponible"
         print(self.name + ":", version)
@@ -214,8 +226,13 @@ class Prog:
         else:
             # si on ne donne pas de regex pour trouver le lien dans la page
             # c'est que download_link correspond aux lien de téléchargement
-            # on remplace juste VERSION par self.version
-            download_link = self.download_link.replace('VERSION', self.version)
+            # on remplace juste VERSION par self.version ou self.sous_version si il existe 
+            # c'est pour flash j'ai besoin du 23 dans 23.0.0.162
+            if self.sous_version:
+                download_link = self.download_link.replace('VERSION', self.sous_version)
+            else:
+                download_link = self.download_link.replace('VERSION', self.version)
+
 
         download_name = self.name
         download_file(download_link, proxy, self.cookies)
