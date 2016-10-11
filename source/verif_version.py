@@ -117,7 +117,10 @@ def download_file(link, proxy=None,cookies=''):
         init_proxy(curl, proxy)
     with open(file_name, 'wb') as f:
         curl.setopt(curl.WRITEDATA, f)
-        curl.perform()
+        try:
+            curl.perform()
+        except pycurl.error as e:
+            print("erreur: ", e)
         curl.close()
     return file_name
 
@@ -132,11 +135,15 @@ def get_page(link, proxy=None):
 
     buf_bytes = BytesIO()
     curl.setopt(curl.WRITEDATA, buf_bytes)
+    page = ''
     if proxy is not None:
         init_proxy(curl, proxy)
-    curl.perform()
-    page_bytes = buf_bytes.getvalue()
-    page = page_bytes.decode("utf-8", "replace")
+    try:
+        curl.perform()
+        page_bytes = buf_bytes.getvalue()
+        page = page_bytes.decode("utf-8", "replace")
+    except pycurl.error as e:
+        print("erreur: ", e)
     curl.close()
     return page
 
