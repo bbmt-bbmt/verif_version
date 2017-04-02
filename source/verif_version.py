@@ -24,6 +24,7 @@ colorama.init()
 download_name = ""
 
 
+
 def call_cmd(cmd):
     """ Permet de lancer des commandes indépendament du chemin
     C'est pour éviter les problèmes lorsque le fichier est dans un
@@ -82,10 +83,15 @@ def init_proxy(curl, proxy):
 def progress(total_to_download, total_downloaded, total_to_upload, total_uploaded):
     global download_name
     percent_completed = 0
-    if total_to_download:
-        percent_completed = total_downloaded * 100 // total_to_download
-        sys.stdout.write('\r%s: %s%%   ' % (download_name, percent_completed))
-        sys.stdout.flush()
+    try:
+        if total_to_download:
+            percent_completed = total_downloaded * 100 // total_to_download
+            sys.stdout.write('\r%s: %s%%   ' % (download_name, percent_completed))
+            sys.stdout.flush()
+    except:
+        # on retourne l'erreur 42 qui je croix correspond à un callbak error
+        # ça va provoquer un raise pycurl.error
+        return 5
 
 
 def init_curl(curl):
@@ -93,11 +99,12 @@ def init_curl(curl):
     curl.setopt(pycurl.SSL_VERIFYHOST, 0)
     # curl.setopt(curl.USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:47.0) Gecko/20100101 Firefox/47.0')
     curl.setopt(curl.FOLLOWLOCATION, 1)
-    # curl.setopt(curl.VERBOSE, 1)
+    # curl.setopt(curl.VERBOSE, 0)
     return
 
 
 def download_file(link, proxy=None,cookies=''):
+    global download_name
     file_name = link.split('/')[-1]
     curl = pycurl.Curl()
     init_curl(curl)
@@ -115,12 +122,22 @@ def download_file(link, proxy=None,cookies=''):
 
     if proxy is not None:
         init_proxy(curl, proxy)
-    with open(file_name, 'wb') as f:
-        curl.setopt(curl.WRITEDATA, f)
-        try:
+    try:
+        with open(file_name, 'wb') as f:
+            curl.setopt(curl.WRITEDATA, f)
             curl.perform()
-        except pycurl.error as e:
-            print("erreur: ", e)
+    except BaseException as b:
+        # on catch toutes les exceptions pour ne pas bloquer le programme
+        # si un téléchargement se passe mal
+        sys.stdout.write('\r%s: %s   ' % (download_name, str(b)))
+        sys.stdout.flush()
+        print()
+        os.remove(file_name)
+        # print("erreur: ", e)
+    # except Exception as e:
+    #     print(type(e))
+    #     print("salut toi")
+    finally:
         curl.close()
     return file_name
 
@@ -157,13 +174,6 @@ class Prog:
             self.download_regex = param.get('download_regex', '').strip()
             self.download_link = param.get('download_link', self.version_link).strip()
             self.cookies = param.get('cookies','').strip()
-            #self.post = param.get('post','').strip().split('\n')
-            #self.post_data = {}
-            #for item in self.post:
-            #    key = item.split(":",1)[0]
-            #    value = item.split(":",1)[1]
-            #    self.post_data[key] = value
-            #self.post_data = urlencode(self.post_data)
             self.cmd = param['cmd'].strip()
             self.version = None
             self.sous_version = None
@@ -248,11 +258,18 @@ class Prog:
 
 
 def erreur_final(*exc_info):
-    text = "".join(traceback.format_exception(*exc_info))
-    print()
-    print("Exception: %s" % text)
-    call_cmd("pause")
-    raise SystemExit(1)
+    # print(type(exc_info[1]))
+    # print(exc_info[0]==KeyboardInterrupt)
+    # les keyboardintterrup sont desactivés et géré dans le programme
+    # text = "".join(traceback.format_exception(*exc_info))
+    # print("execept", str(exc_info))
+    # print(text)
+    if exc_info[0] != KeyboardInterrupt:
+        text = "".join(traceback.format_exception(*exc_info))
+        print()
+        print("Exception: %s" % text)
+        call_cmd("pause")
+        raise SystemExit(1)
     return
 
 
@@ -285,20 +302,17 @@ def main():
     print()
     print(Fore.LIGHTMAGENTA_EX + "Téléchargements des mises à jour:" + Fore.RESET)
     for p in list_prog:
-        p.dowload_installer(proxy=proxy)
+        try:
+            p.dowload_installer(proxy=proxy)
+        except BaseException as b:
+            # si il y a un probleme pendant le telechargement
+            # on l'écrit et on passe au suivant
+            sys.stdout.write('\r%s: %s   ' % (download_name, str(b)))
+            sys.stdout.flush()
+            print()
 
     print(Fore.LIGHTMAGENTA_EX + "Téléchargements terminés" + Fore.RESET)
     call_cmd("pause")
-
-#    if sys.argv[1:] and sys.argv[1] == "messagebox":
-#        intro_message = 'Des mises à jour sont dispo :\n'
-#        message = ''
-#        for p in list_prog:
-#            if p.to_download is True:
-#                message += p.name + '-'
-#        if message != '':
-#            ctypes.windll.user32.MessageBoxW(0, intro_message + message, "Mises à jour", 0)
-
     return
 
 if __name__ == '__main__':
